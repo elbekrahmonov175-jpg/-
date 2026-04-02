@@ -5,7 +5,7 @@ from keyboards.main_menu import get_main_menu
 router = Router()
 
 
-@router.message(F.text == "?? Баланс")
+@router.message(F.text == "?? ГЃГ Г«Г Г­Г±")
 async def show_balance(message: types.Message):
     balance_data = await db.get_balance(message.from_user.id)
     
@@ -13,13 +13,13 @@ async def show_balance(message: types.Message):
     income = balance_data['income']
     expense = balance_data['expense']
     
-    # Определяем эмодзи для баланса
+    # ГЋГЇДџГҐГ¤ГҐГ«ГїГҐГ¬ Д±Г¬Г®Г¤Г§ГЁ Г¤Г«Гї ГЎГ Г«Г Г­Г±Г 
     balance_emoji = "??" if balance >= 0 else "??"
     
     text = (
-        f"{balance_emoji} <b>Баланс: {balance:,} сум</b>\n\n"
-        f"?? Общий доход: {income:,} сум\n"
-        f"?? Общий расход: {expense:,} сум"
+        f"{balance_emoji} <b>ГЃГ Г«Г Г­Г±: {balance:,} Г±ГіГ¬</b>\n\n"
+        f"?? ГЋГЎГ№ГЁГ© Г¤Г®ГµГ®Г¤: {income:,} Г±ГіГ¬\n"
+        f"?? ГЋГЎГ№ГЁГ© ДџГ Г±ГµГ®Г¤: {expense:,} Г±ГіГ¬"
     )
     
     await message.answer(text, reply_markup=get_main_menu(), parse_mode="HTML")

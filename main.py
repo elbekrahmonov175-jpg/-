@@ -17,6 +17,8 @@ async def main():
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         stream=sys.stdout
     )
+
+    BOT_TOKEN = 8694365755:AAG9vRfv4MTGiacBTIT2P3eSkkIu0crXILg
     
     # Читаем токен напрямую из окружения
     BOT_TOKEN = os.getenv("BOT_TOKEN")

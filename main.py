@@ -18,7 +18,7 @@ async def main():
         stream=sys.stdout
     )
 
-    BOT_TOKEN = 8694365755:AAG9vRfv4MTGiacBTIT2P3eSkkIu0crXILg
+    BOT_TOKEN = os.getenv("BOT_TOKEN")  # ← Читаем из Railway
     
     # Читаем токен напрямую из окружения
     BOT_TOKEN = os.getenv("BOT_TOKEN")

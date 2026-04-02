@@ -12,5 +12,5 @@ INCOME_CATEGORIES = ["Зарплата", "Бизнес", "Подарок", "Др
 
 import os
 
-BOT_TOKEN = os.getenv("BOT_TOKEN") or "8694365755:AAG9vRfv4MTGiacBTIT2P3eSkkIu0crXILg"
+BOT_TOKEN = os.getenv("BOT_TOKEN") or 8694365755:AAG9vRfv4MTGiacBTIT2P3eSkkIu0crXILg
 DATABASE_PATH = os.getenv("DATABASE_PATH", "finance.db")

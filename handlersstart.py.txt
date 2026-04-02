@@ -1,0 +1,23 @@
+from aiogram import Router, types, F
+from aiogram.filters import Command
+from keyboards.main_menu import get_main_menu
+
+router = Router()
+
+
+@router.message(Command("start"))
+async def cmd_start(message: types.Message):
+    await message.answer(
+        "?? ѕривет! я твой личный финансовый менеджер.\n\n"
+        "я помогу тебе:\n"
+        "Х ?? ќтслеживать доходы и расходы\n"
+        "Х ?? јнализировать финансы\n"
+        "Х ?? ”читывать долги\n\n"
+        "¬ыбери действие в меню ниже:",
+        reply_markup=get_main_menu()
+    )
+
+
+@router.message(F.text == "?? √лавное меню")
+async def back_to_main(message: types.Message):
+    await message.answer("√лавное меню:", reply_markup=get_main_menu())

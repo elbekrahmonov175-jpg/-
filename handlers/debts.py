@@ -6,8 +6,162 @@ from keyboards.debts import get_debts_menu, get_debt_type_keyboard, get_debts_in
 from keyboards.main_menu import get_main_menu, get_cancel_keyboard
 from database import db
 
-router = Router()  # ← ЭТО ВАЖНО!
+router = Router()
+
 
 @router.message(F.text == "🤝 Долги")
 async def debts_menu(message: types.Message):
-    ...
+    await message.answer(
+        "🤝 <b>Управление долгами</b>\n\n"
+        "Выбери действие:",
+        reply_markup=get_debts_menu(),
+        parse_mode="HTML"
+    )
+
+
+@router.message(F.text == "➕ Добавить долг")
+async def start_add_debt(message: types.Message, state: FSMContext):
+    await state.set_state(DebtState.type_)
+    await message.answer(
+        "Кто кому должен?",
+        reply_markup=get_debt_type_keyboard()
+    )
+
+
+@router.message(DebtState.type_)
+async def process_debt_type(message: types.Message, state: FSMContext):
+    if message.text == "❌ Отмена":
+        await state.clear()
+        await message.answer("Действие отменено", reply_markup=get_debts_menu())
+        return
+    
+    if message.text == "💸 Я дал деньги":
+        await state.update_data(type_="i_gave")
+    elif message.text == "💰 Я взял деньги":
+        await state.update_data(type_="i_took")
+    else:
+        await message.answer("Пожалуйста, выбери вариант из кнопок")
+        return
+    
+    await state.set_state(DebtState.person_name)
+    await message.answer(
+        "Введи имя человека:",
+        reply_markup=get_cancel_keyboard()
+    )
+
+
+@router.message(DebtState.person_name)
+async def process_debt_person(message: types.Message, state: FSMContext):
+    if message.text == "❌ Отмена":
+        await state.clear()
+        await message.answer("Действие отменено", reply_markup=get_debts_menu())
+        return
+    
+    name = message.text.strip()
+    if len(name) < 1 or len(name) > 50:
+        await message.answer("Имя должно быть от 1 до 50 символов")
+        return
+    
+    await state.update_data(person_name=name)
+    await state.set_state(DebtState.amount)
+    await message.answer(
+        "Введи сумму долга (только число):",
+        reply_markup=get_cancel_keyboard()
+    )
+
+
+@router.message(DebtState.amount)
+async def process_debt_amount(message: types.Message, state: FSMContext):
+    if message.text == "❌ Отмена":
+        await state.clear()
+        await message.answer("Действие отменено", reply_markup=get_debts_menu())
+        return
+    
+    try:
+        amount = int(message.text.strip())
+        if amount <= 0:
+            await message.answer("Сумма должна быть больше 0")
+            return
+    except ValueError:
+        await message.answer("Введи только число:")
+        return
+    
+    data = await state.get_data()
+    type_ = data['type_']
+    person_name = data['person_name']
+    
+    await db.add_debt(
+        user_id=message.from_user.id,
+        person_name=person_name,
+        amount=amount,
+        type_=type_
+    )
+    
+    type_text = "дал" if type_ == "i_gave" else "взял"
+    await state.clear()
+    await message.answer(
+        f"✅ Долг записан!\n\n"
+        f"Ты {type_text} {person_name}: {amount:,} сум",
+        reply_markup=get_debts_menu()
+    )
+
+
+@router.message(F.text == "📋 Мои долги")
+async def show_debts(message: types.Message):
+    debts = await db.get_debts(message.from_user.id, is_paid=False)
+    
+    if not debts:
+        await message.answer(
+            "📭 У тебя нет активных долгов!",
+            reply_markup=get_debts_menu()
+        )
+        return
+    
+    text = "📋 <b>Твои долги:</b>\n\n"
+    
+    for debt in debts:
+        person = debt['person_name']
+        amount = debt['amount']
+        date = debt['date'][:10]
+        
+        if debt['type'] == 'i_gave':
+            text += f"💸 Ты дал <b>{person}</b>: {amount:,} сум ({date})\n"
+        else:
+            text += f"💰 Ты взял у <b>{person}</b>: {amount:,} сум ({date})\n"
+    
+    text += "\n<i>Для отметки долга как оплаченного используй кнопку '✅ Отметить как оплаченный'</i>"
+    
+    await message.answer(text, reply_markup=get_debts_menu(), parse_mode="HTML")
+
+
+@router.message(F.text == "✅ Отметить как оплаченный")
+async def start_pay_debt(message: types.Message, state: FSMContext):
+    debts = await db.get_debts(message.from_user.id, is_paid=False)
+    
+    if not debts:
+        await message.answer(
+            "📭 Нет долгов для отметки",
+            reply_markup=get_debts_menu()
+        )
+        return
+    
+    await state.set_state(DebtPayState.selecting)
+    await message.answer(
+        "Выбери долг для отметки как оплаченный:",
+        reply_markup=get_debts_inline_keyboard(debts, action="pay")
+    )
+
+
+@router.callback_query(DebtPayState.selecting, F.data.startswith("pay_debt:"))
+async def process_pay_debt(callback: CallbackQuery, state: FSMContext):
+    debt_id = int(callback.data.split(":")[1])
+    
+    success = await db.mark_debt_paid(debt_id, callback.from_user.id)
+    
+    if success:
+        await callback.message.edit_text("✅ Долг отмечен как оплаченный!")
+    else:
+        await callback.message.edit_text("❌ Ошибка: долг не найден")
+    
+    await state.clear()
+    await callback.answer()

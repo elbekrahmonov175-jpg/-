@@ -4,14 +4,7 @@ from aiogram import Router
 def get_handlers_router() -> Router:
     router = Router()
     
-    # Импортируем и подключаем каждый модуль
-    from . import start
-    from . import income
-    from . import expense
-    from . import balance
-    from . import stats
-    from . import history
-    from . import debts
+    from . import start, income, expense, balance, stats, history, debts
     
     router.include_router(start.router)
     router.include_router(income.router)

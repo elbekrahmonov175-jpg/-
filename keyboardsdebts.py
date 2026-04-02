@@ -3,24 +3,24 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMar
 
 def get_debts_menu() -> ReplyKeyboardMarkup:
     keyboard = [
-        [KeyboardButton(text="? Добавить долг")],
-        [KeyboardButton(text="?? Мои долги"), KeyboardButton(text="? Отметить как оплаченный")],
-        [KeyboardButton(text="?? Главное меню")]
+        [KeyboardButton(text="? Г„Г®ГЎГ ГўГЁГІГј Г¤Г®Г«ГЈ")],
+        [KeyboardButton(text="?? ГЊГ®ГЁ Г¤Г®Г«ГЈГЁ"), KeyboardButton(text="? ГЋГІГ¬ГҐГІГЁГІГј ГЄГ ГЄ Г®ГЇГ«Г Г·ГҐГ­Г­Г»Г©")],
+        [KeyboardButton(text="?? ГѓГ«Г ГўГ­Г®ГҐ Г¬ГҐГ­Гѕ")]
     ]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
 def get_debt_type_keyboard() -> ReplyKeyboardMarkup:
     keyboard = [
-        [KeyboardButton(text="?? Я дал деньги")],
-        [KeyboardButton(text="?? Я взял деньги")],
-        [KeyboardButton(text="? Отмена")]
+        [KeyboardButton(text="?? Гџ Г¤Г Г« Г¤ГҐГ­ГјГЈГЁ")],
+        [KeyboardButton(text="?? Гџ ГўГ§ГїГ« Г¤ГҐГ­ГјГЈГЁ")],
+        [KeyboardButton(text="? ГЋГІГ¬ГҐГ­Г ")]
     ]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
 def get_debts_inline_keyboard(debts: list, action: str = "pay") -> InlineKeyboardMarkup:
-    """Создание inline клавиатуры для списка долгов"""
+    """Г‘Г®Г§Г¤Г Г­ГЁГҐ inline ГЄГ«Г ГўГЁГ ГІГіГ°Г» Г¤Г«Гї Г±ГЇГЁГ±ГЄГ  Г¤Г®Г«ГЈГ®Гў"""
     keyboard = []
     for debt in debts:
         debt_id = debt['id']

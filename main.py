@@ -4,7 +4,7 @@ import sys
 import os
 
 from aiogram import Bot, Dispatcher
-from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
 
 from database import db
 from handlers import get_handlers_router
@@ -18,22 +18,26 @@ async def main():
         stream=sys.stdout
     )
     
-    # Читаем токен напрямую из окружения
+    # Читаем токен из окружения
     BOT_TOKEN = os.getenv("BOT_TOKEN")
-    
-    logging.info(f"BOT_TOKEN value: {BOT_TOKEN}")
-    logging.info(f"BOT_TOKEN type: {type(BOT_TOKEN)}")
     
     if not BOT_TOKEN:
         logging.error("BOT_TOKEN is empty! Check Railway Variables!")
         return
     
+    logging.info(f"BOT_TOKEN loaded successfully")
+    
     # Инициализация базы данных
     await db.init_db()
     logging.info("Database initialized")
     
-    # Создание бота и диспетчера
-    bot = Bot(token=BOT_TOKEN, parse_mode=ParseMode.HTML)
+    # Создание бота (исправлено для aiogram 3.7+)
+    bot = Bot(
+        token=BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode="HTML")
+    )
+    
+    # Создание диспетчера
     dp = Dispatcher()
     
     # Подключение роутеров

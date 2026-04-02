@@ -12,7 +12,7 @@ class ExpenseState(StatesGroup):
 
 
 class DebtState(StatesGroup):
-    type_ = State()  # i_gave или i_took
+    type_ = State()  # i_gave ДЌГ«ДЌ i_took
     person_name = State()
     amount = State()
 

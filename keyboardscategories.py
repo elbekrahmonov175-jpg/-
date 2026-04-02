@@ -4,11 +4,11 @@ from config import INCOME_CATEGORIES, EXPENSE_CATEGORIES
 
 def get_income_categories() -> ReplyKeyboardMarkup:
     keyboard = [[KeyboardButton(text=cat)] for cat in INCOME_CATEGORIES]
-    keyboard.append([KeyboardButton(text="? Îòìåíà")])
+    keyboard.append([KeyboardButton(text="? ÃÃ²Ã¬Ã¥Ã­Ã ")])
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
 def get_expense_categories() -> ReplyKeyboardMarkup:
     keyboard = [[KeyboardButton(text=cat)] for cat in EXPENSE_CATEGORIES]
-    keyboard.append([KeyboardButton(text="? Îòìåíà")])
+    keyboard.append([KeyboardButton(text="? ÃÃ²Ã¬Ã¥Ã­Ã ")])
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)

@@ -6,7 +6,6 @@ import os
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 
-from config import BOT_TOKEN
 from database import db
 from handlers import get_handlers_router
 
@@ -19,22 +18,15 @@ async def main():
         stream=sys.stdout
     )
     
-    # ПРОВЕРКА ТОКЕНА
+    # Читаем токен напрямую из окружения
+    BOT_TOKEN = os.getenv("BOT_TOKEN")
+    
     logging.info(f"BOT_TOKEN value: {BOT_TOKEN}")
     logging.info(f"BOT_TOKEN type: {type(BOT_TOKEN)}")
     
-    if not BOT_TOKEN or BOT_TOKEN == "None":
+    if not BOT_TOKEN:
         logging.error("BOT_TOKEN is empty! Check Railway Variables!")
-        # Попробуем загрузить напрямую из окружения
-        token_from_env = os.getenv("BOT_TOKEN")
-        logging.info(f"Token from os.getenv: {token_from_env}")
-        if token_from_env:
-            logging.info("Found token in environment! Using it.")
-            global BOT_TOKEN
-            BOT_TOKEN = token_from_env
-        else:
-            logging.error("Token not found in environment either!")
-            return
+        return
     
     # Инициализация базы данных
     await db.init_db()

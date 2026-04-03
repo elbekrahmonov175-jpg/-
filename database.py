@@ -1,5 +1,6 @@
 import os
-import asyncpg
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from typing import Optional, List, Dict, Any
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -9,10 +10,15 @@ class Database:
     def __init__(self):
         self.db_url = DATABASE_URL
 
+    def _connect(self):
+        return psycopg2.connect(self.db_url)
+
     async def init_db(self):
-        conn = await asyncpg.connect(self.db_url)
+        # psycopg2 синхронный, поэтому используем обычный вызов
+        conn = self._connect()
+        cur = conn.cursor()
         
-        await conn.execute("""
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS transactions (
                 id SERIAL PRIMARY KEY,
                 user_id BIGINT NOT NULL,
@@ -23,7 +29,7 @@ class Database:
             )
         """)
         
-        await conn.execute("""
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS debts (
                 id SERIAL PRIMARY KEY,
                 user_id BIGINT NOT NULL,
@@ -35,32 +41,39 @@ class Database:
             )
         """)
         
-        await conn.close()
+        conn.commit()
+        cur.close()
+        conn.close()
 
     async def add_transaction(self, user_id: int, type_: str, category: str, amount: int):
-        conn = await asyncpg.connect(self.db_url)
-        await conn.execute(
-            "INSERT INTO transactions (user_id, type, category, amount) VALUES ($1, $2, $3, $4)",
-            user_id, type_, category, amount
+        conn = self._connect()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO transactions (user_id, type, category, amount) VALUES (%s, %s, %s, %s)",
+            (user_id, type_, category, amount)
         )
-        await conn.close()
+        conn.commit()
+        cur.close()
+        conn.close()
 
     async def get_balance(self, user_id: int) -> Dict[str, int]:
-        conn = await asyncpg.connect(self.db_url)
+        conn = self._connect()
+        cur = conn.cursor()
         
-        row = await conn.fetchrow(
-            "SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE user_id = $1 AND type = 'income'",
-            user_id
+        cur.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = %s AND type = 'income'",
+            (user_id,)
         )
-        total_income = row['total']
+        total_income = cur.fetchone()[0]
         
-        row = await conn.fetchrow(
-            "SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE user_id = $1 AND type = 'expense'",
-            user_id
+        cur.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = %s AND type = 'expense'",
+            (user_id,)
         )
-        total_expense = row['total']
+        total_expense = cur.fetchone()[0]
         
-        await conn.close()
+        cur.close()
+        conn.close()
         
         return {
             "income": total_income,
@@ -69,81 +82,103 @@ class Database:
         }
 
     async def get_today_expenses(self, user_id: int) -> int:
-        conn = await asyncpg.connect(self.db_url)
-        row = await conn.fetchrow("""
-            SELECT COALESCE(SUM(amount), 0) as total FROM transactions 
-            WHERE user_id = $1 AND type = 'expense' 
+        conn = self._connect()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT COALESCE(SUM(amount), 0) FROM transactions 
+            WHERE user_id = %s AND type = 'expense' 
             AND date::date = CURRENT_DATE
-        """, user_id)
-        await conn.close()
-        return row['total']
+        """, (user_id,))
+        result = cur.fetchone()[0]
+        cur.close()
+        conn.close()
+        return result
 
     async def get_month_expenses(self, user_id: int) -> int:
-        conn = await asyncpg.connect(self.db_url)
-        row = await conn.fetchrow("""
-            SELECT COALESCE(SUM(amount), 0) as total FROM transactions 
-            WHERE user_id = $1 AND type = 'expense' 
+        conn = self._connect()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT COALESCE(SUM(amount), 0) FROM transactions 
+            WHERE user_id = %s AND type = 'expense' 
             AND EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE)
             AND EXTRACT(MONTH FROM date) = EXTRACT(MONTH FROM CURRENT_DATE)
-        """, user_id)
-        await conn.close()
-        return row['total']
+        """, (user_id,))
+        result = cur.fetchone()[0]
+        cur.close()
+        conn.close()
+        return result
 
     async def get_top_category(self, user_id: int) -> Optional[str]:
-        conn = await asyncpg.connect(self.db_url)
-        row = await conn.fetchrow("""
+        conn = self._connect()
+        cur = conn.cursor()
+        cur.execute("""
             SELECT category, COUNT(*) as cnt, SUM(amount) as total
             FROM transactions 
-            WHERE user_id = $1 AND type = 'expense'
+            WHERE user_id = %s AND type = 'expense'
             GROUP BY category
             ORDER BY cnt DESC, total DESC
             LIMIT 1
-        """, user_id)
-        await conn.close()
+        """, (user_id,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
         
         if row:
-            return f"{row['category']} ({row['cnt']} раз, {row['total']} сум)"
+            return f"{row[0]} ({row[1]} раз, {row[2]} сум)"
         return None
 
     async def get_history(self, user_id: int, limit: int = 10) -> List[Dict[str, Any]]:
-        conn = await asyncpg.connect(self.db_url)
-        rows = await conn.fetch("""
+        conn = self._connect()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
             SELECT type, category, amount, date 
             FROM transactions 
-            WHERE user_id = $1
+            WHERE user_id = %s
             ORDER BY date DESC
-            LIMIT $2
-        """, user_id, limit)
-        await conn.close()
+            LIMIT %s
+        """, (user_id, limit))
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
         return [dict(row) for row in rows]
 
     async def add_debt(self, user_id: int, person_name: str, amount: int, type_: str):
-        conn = await asyncpg.connect(self.db_url)
-        await conn.execute(
-            "INSERT INTO debts (user_id, person_name, amount, type) VALUES ($1, $2, $3, $4)",
-            user_id, person_name, amount, type_
+        conn = self._connect()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO debts (user_id, person_name, amount, type) VALUES (%s, %s, %s, %s)",
+            (user_id, person_name, amount, type_)
         )
-        await conn.close()
+        conn.commit()
+        cur.close()
+        conn.close()
 
     async def get_debts(self, user_id: int, is_paid: bool = False) -> List[Dict[str, Any]]:
-        conn = await asyncpg.connect(self.db_url)
-        rows = await conn.fetch("""
+        conn = self._connect()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
             SELECT id, person_name, amount, type, date, is_paid 
             FROM debts 
-            WHERE user_id = $1 AND is_paid = $2
+            WHERE user_id = %s AND is_paid = %s
             ORDER BY date DESC
-        """, user_id, is_paid)
-        await conn.close()
+        """, (user_id, is_paid))
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
         return [dict(row) for row in rows]
 
     async def mark_debt_paid(self, debt_id: int, user_id: int) -> bool:
-        conn = await asyncpg.connect(self.db_url)
-        result = await conn.execute(
-            "UPDATE debts SET is_paid = TRUE WHERE id = $1 AND user_id = $2",
-            debt_id, user_id
+        conn = self._connect()
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE debts SET is_paid = TRUE WHERE id = %s AND user_id = %s",
+            (debt_id, user_id)
         )
-        await conn.close()
-        return result == "UPDATE 1"
+        conn.commit()
+        result = cur.rowcount > 0
+        cur.close()
+        conn.close()
+        return result
 
 
 db = Database()
